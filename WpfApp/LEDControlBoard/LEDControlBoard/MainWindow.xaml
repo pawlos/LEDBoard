@@ -3,12 +3,18 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="LED Board" Height="350" Width="525" >    
     <Window.Resources>
-        <Style TargetType="{x:Type TextBlock}">
+        <Style TargetType="{x:Type TextBox}">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="Bold" />            
+            <Setter Property="Height" Value="40" />
+        </Style>
+        <Style TargetType="{x:Type Button}">
             <Setter Property="FontSize" Value="20" />
             <Setter Property="FontWeight" Value="Bold" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
     </Window.Resources>
-    <TextBlock Text="{Binding}" />
+    <StackPanel>
+        <TextBox Text="{Binding TextToBeWritten}" />
+        <Button Command="{Binding ProgramBoard}" CommandParameter="{Binding TextToBeWritten}" Content="Send to LED Board" />
+    </StackPanel>
 </Window>
