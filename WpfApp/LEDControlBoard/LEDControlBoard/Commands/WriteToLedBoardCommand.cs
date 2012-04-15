@@ -20,7 +20,7 @@ namespace LEDControlBoard.Commands
             string textToWrite = parameter.ToString();
             using (var controller = new BoardController(_serialPort))
             {
-                controller.Write(textToWrite);
+                controller.WriteLine(textToWrite);
             }            
         }
 
