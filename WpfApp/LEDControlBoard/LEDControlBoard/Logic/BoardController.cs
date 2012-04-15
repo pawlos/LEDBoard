@@ -6,8 +6,19 @@ namespace LEDControlBoard.Logic
 {
     public class BoardController : IDisposable
     {
+        private enum Speed : byte
+        {
+            Fast = 0x35,
+        }
+
+        private enum Effect : byte
+        {
+            Scroll = 0x42
+        }
         private readonly SerialPort _serialPort;
         private static int _lineNo = -1;
+        private const int PackageSize = 69;
+        private const int MaxDataSize = 60;
         public BoardController(SerialPort serialPort)
         {
             if (serialPort == null) throw new ArgumentNullException("serialPort");
@@ -21,33 +32,57 @@ namespace LEDControlBoard.Logic
                 _lineNo = -1;
             _serialPort.Write(new byte[] {0}, 0, 1);
             for (int packageNo = 0; packageNo < 4; packageNo++)
-            {
-                var data = new byte[0x45];
-                _serialPort.Write(CreatePackage(data, _lineNo, packageNo, text), 0, data.Length);
+            {                
+                _serialPort.Write(CreatePackage(_lineNo, packageNo, text), 0, PackageSize);
             }            
             return true;
         }
 
-        private byte[] CreatePackage(byte[] data, int lineNo, int packageNo, string text)
+        /// <remarks>
+        /// Index - Value
+        /// 0     -  0x02 (const)
+        /// 1     -  0x31 (const)
+        /// 2     -  line no + 6
+        /// 3     -  package no * 64; 0x00, 0x40, 0x80, 0xC0
+        /// 4     -  speed / data byte
+        /// 5     -  line no + 0x31 / data byte
+        /// 6     -  effect / data byte
+        /// 7     -  length / data byte
+        /// 8-68  -  data bytes
+        /// 69    -  checksum
+        /// </remarks>        
+        private static byte[] CreatePackage(int lineNo, int packageNo, string text)
         {
-            var start = (byte) (packageNo << 6);
+            byte[] data = new byte[PackageSize];
+            var startIndex = (byte) (packageNo << 6);
             data[0] = 0x02;
             data[1] = 0x31;
             data[2] = (byte) (lineNo + 6);
-            data[3] = start;            
-            if (start < text.Length)
+            data[3] = startIndex;
+            if (IncludeLineInfo(packageNo))
             {
-                if (packageNo == 0)
-                {
-                    data[4] = 0x35;
-                    data[5] = (byte) (lineNo + 0x31);
-                    data[6] = 0x42;
-                    data[7] = (byte) text.Length;
-                }
-                Array.Copy(text.Select(x=>(byte)x).ToArray(), start, data, packageNo == 0 ? 8 : 4, Math.Min(text.Length-start, 60));
+                data[4] = (byte)Speed.Fast;
+                data[5] = (byte)(lineNo + 0x31);
+                data[6] = (byte)Effect.Scroll;
+                data[7] = (byte)text.Length;
+            }
+            if (HasMoreData(startIndex, text))
+            {
+                Array.Copy(text.Select(x => (byte) x).ToArray(), startIndex, data, packageNo == 0 ? 8 : 4,
+                           Math.Min(text.Length - startIndex, MaxDataSize));
             }
             data[data.Length - 1] = (byte) (data.Sum(x => x) - 2);
             return data;
+        }
+
+        private static bool HasMoreData(byte startIndex, string text)
+        {
+            return startIndex < text.Length;
+        }
+
+        private static bool IncludeLineInfo(int packageNo)
+        {
+            return packageNo == 0;
         }
 
         public void Dispose()
